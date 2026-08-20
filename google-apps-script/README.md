@@ -16,17 +16,18 @@ takes about 5 minutes, free.
 5. Click **Deploy**, authorize it (it'll warn you it's an unverified app —
    that's expected since you just wrote it; click through Advanced → Go to
    project (unsafe)), and copy the **Web app URL** it gives you.
-6. In the game's repo, copy `js/collect-config.example.js` to
+6. For **local testing**: copy `js/collect-config.example.js` to
    `js/collect-config.js` (this file is gitignored — it will never be
    committed) and paste the URL in:
    ```js
    export const COLLECT_ENDPOINT = "https://script.google.com/macros/s/.../exec";
    ```
-7. Deploy the game as usual. `js/collect-config.js` needs to exist on
-   whatever machine/host actually builds or serves the deployed copy — since
-   it's gitignored, that means placing it there manually outside of git
-   (e.g. copy it in as a manual step before running `firebase deploy`, or
-   however you're hosting).
+7. For the **live/deployed site**: don't put the URL in any file. Instead add
+   it as a GitHub repo secret named `COLLECT_ENDPOINT` (Settings → Secrets and
+   variables → Actions) — the deploy workflow (`.github/workflows/deploy.yml`)
+   writes it into `js/collect-config.js` only inside the deployed artifact, so
+   it never appears in the repo or its history. See the main `README.md`'s
+   deploy section for the full setup.
 
 Each row appended will have: `playedAt, name, runs, wickets, balls, ip, city,
 region, country, connectionType, downlinkMbps`.

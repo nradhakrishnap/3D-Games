@@ -26,19 +26,21 @@ Then open `http://localhost:8000`.
 
 ## Deploying so you can share a URL
 
-Any static host works since there's no backend. Simple free options:
+This repo auto-deploys to GitHub Pages on every push to `main` via
+`.github/workflows/deploy.yml`. One-time setup:
 
-**GitHub Pages** (pairs naturally with a public repo):
-1. Repo → **Settings → Pages** → Source: deploy from branch `main`, root.
-2. GitHub gives you a URL like `https://<username>.github.io/3D-Games/`.
-
-**Firebase Hosting / Vercel / Netlify** also work, if you'd rather:
-```
-npm install -g firebase-tools
-firebase login
-firebase init hosting     # choose this folder as the public directory, single-page app: No
-firebase deploy
-```
+1. Repo → **Settings → Pages** → **Source: GitHub Actions** (not "deploy from
+   branch" — the workflow handles that).
+2. Repo → **Settings → Secrets and variables → Actions → New repository
+   secret**, name it `COLLECT_ENDPOINT`, value = your Apps Script Web App URL
+   (see `google-apps-script/README.md`). The workflow writes this into
+   `js/collect-config.js` only inside the deploy artifact — it never touches
+   the repo itself. Skip this secret entirely if you don't want the live site
+   collecting stats; the game still works fine, the checkbox just becomes a
+   no-op.
+3. Push to `main` (or re-run the workflow manually from the **Actions** tab).
+   GitHub gives you a URL like `https://<username>.github.io/3D-Games/` —
+   that's what you share with testers, along with the access code.
 
 ## Roadmap ideas (not built yet)
 
