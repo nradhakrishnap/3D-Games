@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>3D Cricket</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ACCESS CODE GATE -->
+  <section id="screen-access" class="screen active">
+    <div class="card">
+      <h1>3D Cricket</h1>
+      <p class="subtitle">Enter the access code to continue</p>
+      <form id="form-access">
+        <input type="password" id="access-code" placeholder="Access code" autocomplete="off" required />
+        <button type="submit">Enter</button>
+      </form>
+      <p class="error" id="access-error"></p>
+    </div>
+  </section>
+
+  <!-- LOGIN / REGISTER -->
+  <section id="screen-auth" class="screen">
+    <div class="card">
+      <h1>3D Cricket</h1>
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="login">Login</button>
+        <button class="tab-btn" data-tab="register">Register</button>
+      </div>
+
+      <form id="form-login" class="tab-panel active">
+        <input type="text" id="login-name" placeholder="Name" autocomplete="username" required />
+        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required />
+        <button type="submit">Login</button>
+      </form>
+
+      <form id="form-register" class="tab-panel">
+        <input type="text" id="register-name" placeholder="Choose a name" autocomplete="username" required />
+        <input type="password" id="register-password" placeholder="Choose a password" autocomplete="new-password" required minlength="4" />
+        <button type="submit">Create account</button>
+      </form>
+
+      <p class="error" id="auth-error"></p>
+    </div>
+  </section>
+
+  <!-- MAIN MENU -->
+  <section id="screen-menu" class="screen">
+    <div class="card">
+      <h1>3D Cricket</h1>
+      <p class="subtitle" id="menu-welcome"></p>
+      <p class="stat">Personal best: <span id="menu-highscore">0</span> runs</p>
+      <button id="btn-play">Play</button>
+      <button id="btn-logout" class="secondary">Log out</button>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section id="screen-game" class="screen">
+    <div id="hud">
+      <div id="hud-score">0 / 0</div>
+      <div id="hud-overs">Over 0.0</div>
+      <div id="hud-message"></div>
+    </div>
+    <div id="canvas-container"></div>
+    <div id="controls-hint">Press SPACE (or tap the field) to swing the bat as the ball arrives</div>
+  </section>
+
+  <!-- GAME OVER -->
+  <section id="screen-gameover" class="screen">
+    <div class="card">
+      <h1>Innings Over</h1>
+      <p class="stat">You scored <span id="final-score">0</span> runs</p>
+      <p class="stat" id="final-highscore-note"></p>
+      <button id="btn-play-again">Play Again</button>
+      <button id="btn-menu" class="secondary">Main Menu</button>
+    </div>
+  </section>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
