@@ -22,7 +22,8 @@ Then open `http://localhost:8000`.
 - **Disclaimer**: shown once per browser, before the name prompt, stating plainly what is and isn't stored. Keep it accurate — update it if what the app collects ever changes.
 - **Name / scores**: no account, no password. A player types a name and it's remembered (with their high score) in that browser's local storage only. Different browser or device = a fresh start.
 - **Optional stats**: on the disclaimer screen there's an unchecked-by-default checkbox to also send name, score, approximate region (city/country from IP), and connection type/speed to a Google Sheet you control. Nothing is sent unless a player explicitly checks it. See `google-apps-script/README.md` to wire this up (optional — the game works fully without it).
-- **Game**: batting only. An AI bowler sends deliveries down the pitch; press **SPACE** (or tap the field on mobile) to swing as the ball arrives. Timing determines runs (dot ball, 1, 2, 4, 6) or getting bowled. Single innings, 1 wicket, 5 overs.
+- **Game**: batting only. An AI bowler sends deliveries down the pitch; press **SPACE** (or tap the field on mobile) to swing as the ball arrives. Timing determines runs (dot ball, 1, 2, 4, 6) or getting bowled. Single innings, 1 wicket, 5 overs. A pause button in the HUD lets you resume, restart the innings, or quit to the menu mid-game.
+- **Visuals**: procedural low-poly players (helmet/pads/gloves on the batsman, cap on the bowler), a seamed ball, tiered stadium stands, boundary advertising boards, and floodlight towers — all generated in code, no external 3D model files.
 
 ## Deploying so you can share a URL
 
@@ -46,5 +47,6 @@ This repo auto-deploys to GitHub Pages on every push to `main` via
 
 - A shared leaderboard across players/devices (would need a small backend — e.g. Firestore with just name + score, no accounts)
 - Bowling mode / full match simulation, fielding, running between wickets
-- Better crowd/stadium visuals, ball swing & spin physics
+- Ball swing & spin physics, difficulty levels, different shot types
+- Sound effects and commentary-style feedback
 - Multiplayer
