@@ -48,9 +48,9 @@ export function createCricketGame(container, callbacks) {
   window.addEventListener("resize", resize);
 
   // ---- Lighting ----------------------------------------------------------
-  const hemi = new THREE.HemisphereLight(0xbfe3ff, 0x2d5a27, 0.7);
+  const hemi = new THREE.HemisphereLight(0xbfe3ff, 0x2d5a27, 0.75);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xfff4e0, 1.6);
+  const sun = new THREE.DirectionalLight(0xfff1d6, 1.9);
   sun.position.set(30, 45, 20);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
@@ -61,6 +61,19 @@ export function createCricketGame(container, callbacks) {
   sun.shadow.camera.far = 120;
   sun.shadow.bias = -0.0015;
   scene.add(sun);
+
+  // a soft cool fill light from the opposite side, so shadowed faces aren't pure black
+  const fill = new THREE.DirectionalLight(0xcfe3ff, 0.35);
+  fill.position.set(-25, 20, -30);
+  scene.add(fill);
+
+  // visible sun disc + glow, positioned far away along the sun's direction
+  const sunSprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({ map: makeSunGlowTexture(), color: 0xfff6e0, transparent: true, depthWrite: false })
+  );
+  sunSprite.scale.set(38, 38, 1);
+  sunSprite.position.copy(sun.position).normalize().multiplyScalar(220);
+  scene.add(sunSprite);
 
   // ---- Field --------------------------------------------------------------
   const grassTexture = makeGrassTexture();
@@ -102,11 +115,50 @@ export function createCricketGame(container, callbacks) {
   );
   scene.add(rope);
 
-  // simple stands ring
-  const standsGeo = new THREE.CylinderGeometry(FIELD_RADIUS + 6, FIELD_RADIUS + 6, 4, 48, 1, true);
-  const stands = new THREE.Mesh(standsGeo, new THREE.MeshStandardMaterial({ color: 0x8a97ad, side: THREE.BackSide }));
-  stands.position.set(0, 2, BOWLER_Z / 2);
+  // tiered stands ring, textured with rows of seating instead of flat color
+  const standsTexture = makeStandsTexture();
+  standsTexture.repeat.set(24, 1);
+  const standsGeo = new THREE.CylinderGeometry(FIELD_RADIUS + 6, FIELD_RADIUS + 6, 5, 48, 1, true);
+  const stands = new THREE.Mesh(standsGeo, new THREE.MeshStandardMaterial({ map: standsTexture, side: THREE.BackSide, roughness: 0.9 }));
+  stands.position.set(0, 2.2, BOWLER_Z / 2);
   scene.add(stands);
+
+  // advertising boards around the boundary
+  const boardsTexture = makeAdBoardsTexture();
+  boardsTexture.repeat.set(28, 1);
+  const boardsGeo = new THREE.CylinderGeometry(FIELD_RADIUS - 1.4, FIELD_RADIUS - 1.4, 1, 64, 1, true);
+  const boards = new THREE.Mesh(boardsGeo, new THREE.MeshStandardMaterial({ map: boardsTexture, side: THREE.BackSide, roughness: 0.6 }));
+  boards.position.set(0, 0.55, BOWLER_Z / 2);
+  scene.add(boards);
+
+  // floodlight towers at the four corners of the ground
+  const towerMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.6, metalness: 0.3 });
+  const fixtureMat = new THREE.MeshStandardMaterial({ color: 0xfff6d8, emissive: 0xffedb0, emissiveIntensity: 0.6, roughness: 0.4 });
+  const towerCenter = new THREE.Vector3(0, 0, BOWLER_Z / 2);
+  [Math.PI / 4, (3 * Math.PI) / 4, (5 * Math.PI) / 4, (7 * Math.PI) / 4].forEach((angle) => {
+    const r = FIELD_RADIUS + 9;
+    const tower = new THREE.Group();
+    tower.position.set(towerCenter.x + Math.cos(angle) * r, 0, towerCenter.z + Math.sin(angle) * r);
+
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 26, 8), towerMat);
+    pole.position.y = 13;
+    pole.castShadow = true;
+    tower.add(pole);
+
+    const rig = new THREE.Mesh(new THREE.BoxGeometry(4.5, 3, 0.6), towerMat);
+    rig.position.y = 26.5;
+    rig.lookAt(towerCenter.x, 26.5, towerCenter.z);
+    tower.add(rig);
+
+    for (let gx = -1; gx <= 1; gx++) {
+      for (let gy = -1; gy <= 0; gy++) {
+        const fixture = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.1, 0.15), fixtureMat);
+        fixture.position.set(gx * 1.5, 26.5 + gy * 1.3 + 0.65, 0.35);
+        rig.add(fixture);
+      }
+    }
+    scene.add(tower);
+  });
 
   // crowd -- a ring of small colored blocks in the stands, instanced for performance
   const CROWD_COUNT = 260;
@@ -535,6 +587,65 @@ export function createCricketGame(container, callbacks) {
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     },
   };
+}
+
+function makeStandsTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256; canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  const rows = 9;
+  for (let i = 0; i < rows; i++) {
+    const t = i / rows;
+    const shade = Math.round(120 - t * 45);
+    ctx.fillStyle = `rgb(${shade + 10}, ${shade + 14}, ${shade + 22})`;
+    ctx.fillRect(0, (i / rows) * 128, 256, 128 / rows + 1);
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  for (let i = 0; i < rows; i++) {
+    ctx.fillRect(0, (i / rows) * 128 + 128 / rows - 3, 256, 3);
+  }
+  // scattered dots to break up the flatness, hinting at a distant crowd
+  for (let i = 0; i < 500; i++) {
+    const b = 150 + Math.random() * 90;
+    ctx.fillStyle = `rgba(${b},${b},${b},0.5)`;
+    ctx.fillRect(Math.random() * 256, 8 + Math.random() * 112, 2, 2);
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeAdBoardsTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 512; canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  const colors = ["#1d4ed8", "#dc2626", "#16a34a", "#ea580c", "#7c3aed", "#0891b2"];
+  const segW = canvas.width / colors.length;
+  colors.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(i * segW, 0, segW, canvas.height);
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.fillRect(i * segW + segW * 0.15, canvas.height * 0.42, segW * 0.7, canvas.height * 0.16);
+  });
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeSunGlowTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.25, "rgba(255,246,224,0.9)");
+  grad.addColorStop(0.6, "rgba(255,230,180,0.25)");
+  grad.addColorStop(1, "rgba(255,230,180,0)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(canvas);
 }
 
 function makeBallTexture() {
