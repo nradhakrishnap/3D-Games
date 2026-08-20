@@ -35,9 +35,9 @@ export function createCricketGame(container, callbacks) {
   scene.fog = new THREE.Fog(0xbfe3ff, 60, 130);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 300);
-  const CAMERA_HOME = new THREE.Vector3(0, 1.75, 4.2);
+  const CAMERA_HOME = new THREE.Vector3(0, 2.6, 7.8);
   camera.position.copy(CAMERA_HOME);
-  camera.lookAt(0, 1.2, BOWLER_Z);
+  camera.lookAt(0, 1.3, BOWLER_Z);
 
   function resize() {
     const w = container.clientWidth, h = container.clientHeight;
@@ -405,13 +405,17 @@ export function createCricketGame(container, callbacks) {
       camera.position.copy(CAMERA_HOME);
     }
 
-    // bat swing animation -- rotates the whole arms+bat assembly as one visible motion
+    // bat swing animation -- sweeps sideways (like a real cricket shot) so it reads
+    // clearly as left-right motion from a camera behind the batsman, instead of
+    // swinging toward/away from the camera where it would be barely visible
     if (swingArmed) {
       swingAnimT += dt;
       const t = Math.min(swingAnimT / 0.35, 1);
-      batPivot.rotation.x = -Math.sin(t * Math.PI) * 1.4;
+      batPivot.rotation.y = -Math.sin(t * Math.PI) * 2.2;
+      batPivot.rotation.x = -Math.sin(t * Math.PI) * 0.5;
       if (t >= 1) swingArmed = false;
     } else {
+      batPivot.rotation.y = 0;
       batPivot.rotation.x = 0;
     }
 
