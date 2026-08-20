@@ -206,6 +206,7 @@ export function createCricketGame(container, callbacks) {
     hasSwungThisBall = true;
     swingArmed = true;
     swingAnimT = 0;
+    updateHUD("Swing!"); // instant feedback that the key press was registered
 
     const z = ball.position.z;
     if (z < HIT_WINDOW.start || z > HIT_WINDOW.end) {
@@ -280,6 +281,16 @@ export function createCricketGame(container, callbacks) {
 
   function animate() {
     rafId = requestAnimationFrame(animate);
+    try {
+      step();
+    } catch (err) {
+      cancelAnimationFrame(rafId);
+      console.error("Cricket game crashed:", err);
+      updateHUD(`Game error: ${err.message}`);
+    }
+  }
+
+  function step() {
     const dt = Math.min(clock.getDelta(), 0.05);
 
     // bowler tiny run-up bob

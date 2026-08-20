@@ -110,29 +110,34 @@ function startGame() {
   const container = document.getElementById("canvas-container");
   container.innerHTML = "";
 
-  activeGame = createCricketGame(container, {
-    onUpdate({ runs, wickets, oversText, message }) {
-      document.getElementById("hud-score").textContent = `${runs} / ${wickets}`;
-      document.getElementById("hud-overs").textContent = `Over ${oversText}`;
-      document.getElementById("hud-message").textContent = message;
-      if (message) {
-        clearTimeout(startGame._msgTimer);
-        startGame._msgTimer = setTimeout(() => {
-          document.getElementById("hud-message").textContent = "";
-        }, 1100);
-      }
-    },
-    async onGameOver({ runs, wickets, balls }) {
-      lastResult = { runs, wickets, balls };
-      const { highScore, isNewHighScore } = await saveScore(runs, wickets, balls);
-      document.getElementById("final-score").textContent = runs;
-      document.getElementById("final-highscore-note").textContent = isNewHighScore
-        ? "New personal best!"
-        : `Personal best: ${highScore} runs`;
-      if (activeGame) { activeGame.dispose(); activeGame = null; }
-      showScreen("gameover");
-    },
-  });
+  try {
+    activeGame = createCricketGame(container, {
+      onUpdate({ runs, wickets, oversText, message }) {
+        document.getElementById("hud-score").textContent = `${runs} / ${wickets}`;
+        document.getElementById("hud-overs").textContent = `Over ${oversText}`;
+        document.getElementById("hud-message").textContent = message;
+        if (message) {
+          clearTimeout(startGame._msgTimer);
+          startGame._msgTimer = setTimeout(() => {
+            document.getElementById("hud-message").textContent = "";
+          }, 1100);
+        }
+      },
+      async onGameOver({ runs, wickets, balls }) {
+        lastResult = { runs, wickets, balls };
+        const { highScore, isNewHighScore } = await saveScore(runs, wickets, balls);
+        document.getElementById("final-score").textContent = runs;
+        document.getElementById("final-highscore-note").textContent = isNewHighScore
+          ? "New personal best!"
+          : `Personal best: ${highScore} runs`;
+        if (activeGame) { activeGame.dispose(); activeGame = null; }
+        showScreen("gameover");
+      },
+    });
+  } catch (err) {
+    console.error("Failed to start the game:", err);
+    document.getElementById("hud-message").textContent = `Failed to load 3D scene: ${err.message}`;
+  }
 }
 
 // ---- Boot -----------------------------------------------------------------
