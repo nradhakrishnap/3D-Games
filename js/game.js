@@ -208,6 +208,20 @@ export function createCricketGame(container, callbacks) {
   bowlOtherArm.rotation.z = 0.4;
   bowler.add(bowlOtherArm);
 
+  // cap
+  const capMat = new THREE.MeshStandardMaterial({ color: 0x1f3266, roughness: 0.6 });
+  const cap = new THREE.Mesh(
+    new THREE.SphereGeometry(0.205, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.42),
+    capMat
+  );
+  cap.position.y = 1.7;
+  cap.castShadow = true;
+  bowler.add(cap);
+  const capBrim = new THREE.Mesh(new THREE.CircleGeometry(0.13, 14, 0, Math.PI), capMat);
+  capBrim.rotation.set(-Math.PI / 2 + 0.35, 0, 0);
+  capBrim.position.set(0, 1.62, 0.13);
+  bowler.add(capBrim);
+
   // -- Batsman: fixed figure plus a pivoting shoulder group holding both arms + bat,
   // so the whole swing reads as one clear, visible motion rather than a thin prop moving alone
   const batsman = makeBody(0xb43b3b, 0xf1efe4);
@@ -219,15 +233,25 @@ export function createCricketGame(container, callbacks) {
   batPivot.position.set(0, 1.35, 0.05);
   batsman.add(batPivot);
 
+  const gearMat = new THREE.MeshStandardMaterial({ color: 0xf1efe4, roughness: 0.65 });
+
   const leftArm = makeArm(0xb43b3b);
   leftArm.position.set(-0.16, -0.2, 0.04);
   leftArm.rotation.set(-0.3, 0, 0.35);
   batPivot.add(leftArm);
+  const leftGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), gearMat);
+  leftGlove.position.set(0, -0.21, 0);
+  leftGlove.castShadow = true;
+  leftArm.add(leftGlove);
 
   const rightArm = makeArm(0xb43b3b);
   rightArm.position.set(0.08, -0.2, 0.1);
   rightArm.rotation.set(-0.3, 0, -0.15);
   batPivot.add(rightArm);
+  const rightGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), gearMat);
+  rightGlove.position.set(0, -0.21, 0);
+  rightGlove.castShadow = true;
+  rightArm.add(rightGlove);
 
   const bat = new THREE.Mesh(
     new THREE.BoxGeometry(0.15, 0.85, 0.06),
@@ -237,13 +261,47 @@ export function createCricketGame(container, callbacks) {
   bat.castShadow = true;
   batPivot.add(bat);
 
+  // helmet
+  const helmet = new THREE.Mesh(
+    new THREE.SphereGeometry(0.205, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.7),
+    new THREE.MeshStandardMaterial({ color: 0x15213a, roughness: 0.35, metalness: 0.15 })
+  );
+  helmet.position.y = 1.68;
+  helmet.castShadow = true;
+  batsman.add(helmet);
+  const helmetPeak = new THREE.Mesh(
+    new THREE.CircleGeometry(0.1, 12, 0, Math.PI),
+    new THREE.MeshStandardMaterial({ color: 0x15213a, roughness: 0.35, side: THREE.DoubleSide })
+  );
+  helmetPeak.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
+  helmetPeak.position.set(0, 1.6, 0.14);
+  batsman.add(helmetPeak);
+
+  // leg pads (front of the shins)
+  const leftPad = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.55, 8), gearMat);
+  leftPad.position.set(-0.13, 0.3, 0.05);
+  leftPad.castShadow = true;
+  batsman.add(leftPad);
+  const rightPad = leftPad.clone();
+  rightPad.position.x = 0.13;
+  batsman.add(rightPad);
+
   // ---- Ball -------------------------------------------------------------------
   const ball = new THREE.Mesh(
-    new THREE.SphereGeometry(BALL_RADIUS, 16, 16),
-    new THREE.MeshStandardMaterial({ color: 0xb1141c, roughness: 0.4 })
+    new THREE.SphereGeometry(BALL_RADIUS, 20, 20),
+    new THREE.MeshStandardMaterial({ map: makeBallTexture(), roughness: 0.4 })
   );
   ball.castShadow = true;
   scene.add(ball);
+
+  // popping creases (white lines in front of each set of stumps)
+  const creaseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  [BATSMAN_Z + 1.22, BOWLER_Z - 1.22].forEach((z) => {
+    const crease = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.04), creaseMat);
+    crease.rotation.x = -Math.PI / 2;
+    crease.position.set(0, 0.015, z);
+    scene.add(crease);
+  });
 
   // ---- Game state ---------------------------------------------------------------
   let runs = 0, wickets = 0, ballsBowled = 0;
@@ -477,6 +535,30 @@ export function createCricketGame(container, callbacks) {
       if (renderer.domElement.parentNode) renderer.domElement.parentNode.removeChild(renderer.domElement);
     },
   };
+}
+
+function makeBallTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256; canvas.height = 128;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#a8121a";
+  ctx.fillRect(0, 0, 256, 128);
+  ctx.strokeStyle = "#f2e9d8";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 64);
+  ctx.lineTo(256, 64);
+  ctx.stroke();
+  ctx.lineWidth = 1.5;
+  for (let x = 3; x < 256; x += 7) {
+    ctx.beginPath();
+    ctx.moveTo(x, 58);
+    ctx.lineTo(x, 70);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 function makeGrassTexture() {
