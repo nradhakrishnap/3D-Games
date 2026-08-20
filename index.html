@@ -22,28 +22,37 @@
     </div>
   </section>
 
-  <!-- LOGIN / REGISTER -->
-  <section id="screen-auth" class="screen">
+  <!-- DISCLAIMER -->
+  <section id="screen-disclaimer" class="screen">
+    <div class="card">
+      <h1>Before you play</h1>
+      <p class="disclaimer-text">
+        This is a testing build. The name you enter and your scores are stored
+        only in this browser's local storage, on this device. No account,
+        email, or password is required.
+      </p>
+      <label class="consent-row">
+        <input type="checkbox" id="stats-consent" />
+        <span>
+          Also share basic testing stats with the developer: your name, score,
+          approximate region (city/country, from your IP address), and connection
+          type/speed. Optional -- you can play without checking this.
+        </span>
+      </label>
+      <button id="btn-disclaimer-ok">Continue</button>
+    </div>
+  </section>
+
+  <!-- NAME ENTRY -->
+  <section id="screen-name" class="screen">
     <div class="card">
       <h1>3D Cricket</h1>
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="login">Login</button>
-        <button class="tab-btn" data-tab="register">Register</button>
-      </div>
-
-      <form id="form-login" class="tab-panel active">
-        <input type="text" id="login-name" placeholder="Name" autocomplete="username" required />
-        <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required />
-        <button type="submit">Login</button>
+      <p class="subtitle">Enter a name to play</p>
+      <form id="form-name">
+        <input type="text" id="player-name" placeholder="Your name" autocomplete="off" required />
+        <button type="submit">Continue</button>
       </form>
-
-      <form id="form-register" class="tab-panel">
-        <input type="text" id="register-name" placeholder="Choose a name" autocomplete="username" required />
-        <input type="password" id="register-password" placeholder="Choose a password" autocomplete="new-password" required minlength="4" />
-        <button type="submit">Create account</button>
-      </form>
-
-      <p class="error" id="auth-error"></p>
+      <p class="error" id="name-error"></p>
     </div>
   </section>
 
@@ -54,7 +63,7 @@
       <p class="subtitle" id="menu-welcome"></p>
       <p class="stat">Personal best: <span id="menu-highscore">0</span> runs</p>
       <button id="btn-play">Play</button>
-      <button id="btn-logout" class="secondary">Log out</button>
+      <button id="btn-change-name" class="secondary">Change name</button>
     </div>
   </section>
 

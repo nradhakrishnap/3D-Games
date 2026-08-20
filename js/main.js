@@ -1,17 +1,18 @@
 import { hasAccess, tryUnlock } from "./access-gate.js";
 import {
-  registerUser,
-  loginUser,
-  logoutUser,
-  getCurrentUserName,
+  setPlayerName,
+  getPlayerName,
+  clearPlayerName,
   getHighScore,
   saveScore,
-} from "./auth.js";
+} from "./player.js";
 import { createCricketGame } from "./game.js";
+import { reportStats } from "./collect.js";
 
 const screens = {
   access: document.getElementById("screen-access"),
-  auth: document.getElementById("screen-auth"),
+  disclaimer: document.getElementById("screen-disclaimer"),
+  name: document.getElementById("screen-name"),
   menu: document.getElementById("screen-menu"),
   game: document.getElementById("screen-game"),
   gameover: document.getElementById("screen-gameover"),
@@ -23,7 +24,9 @@ function showScreen(name) {
 }
 
 let activeGame = null;
-let lastResult = null;
+
+const DISCLAIMER_KEY = "cricket_disclaimer_ack";
+const STATS_CONSENT_KEY = "cricket_stats_consent";
 
 // ---- Access gate ------------------------------------------------------
 document.getElementById("form-access").addEventListener("submit", (e) => {
@@ -39,45 +42,35 @@ document.getElementById("form-access").addEventListener("submit", (e) => {
 });
 
 function afterAccessGranted() {
-  const name = getCurrentUserName();
+  if (!localStorage.getItem(DISCLAIMER_KEY)) {
+    showScreen("disclaimer");
+    return;
+  }
+  afterDisclaimerAck();
+}
+
+document.getElementById("btn-disclaimer-ok").addEventListener("click", () => {
+  localStorage.setItem(DISCLAIMER_KEY, "true");
+  const consented = document.getElementById("stats-consent").checked;
+  localStorage.setItem(STATS_CONSENT_KEY, consented ? "true" : "false");
+  afterDisclaimerAck();
+});
+
+function afterDisclaimerAck() {
+  const name = getPlayerName();
   if (name) {
     goToMenu();
   } else {
-    showScreen("auth");
+    showScreen("name");
   }
 }
 
-// ---- Auth tabs ----------------------------------------------------------
-document.querySelectorAll(".tab-btn").forEach((btn) => {
-  btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
-    document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
-    btn.classList.add("active");
-    document.getElementById(`form-${btn.dataset.tab}`).classList.add("active");
-    document.getElementById("auth-error").textContent = "";
-  });
-});
-
-document.getElementById("form-login").addEventListener("submit", async (e) => {
+// ---- Name entry ------------------------------------------------------
+document.getElementById("form-name").addEventListener("submit", (e) => {
   e.preventDefault();
-  const name = document.getElementById("login-name").value;
-  const password = document.getElementById("login-password").value;
-  const result = await loginUser(name, password);
-  const errEl = document.getElementById("auth-error");
-  if (result.ok) {
-    errEl.textContent = "";
-    goToMenu();
-  } else {
-    errEl.textContent = result.error;
-  }
-});
-
-document.getElementById("form-register").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const name = document.getElementById("register-name").value;
-  const password = document.getElementById("register-password").value;
-  const result = await registerUser(name, password);
-  const errEl = document.getElementById("auth-error");
+  const name = document.getElementById("player-name").value;
+  const result = setPlayerName(name);
+  const errEl = document.getElementById("name-error");
   if (result.ok) {
     errEl.textContent = "";
     goToMenu();
@@ -87,10 +80,10 @@ document.getElementById("form-register").addEventListener("submit", async (e) =>
 });
 
 // ---- Menu -----------------------------------------------------------------
-async function goToMenu() {
-  const name = getCurrentUserName();
+function goToMenu() {
+  const name = getPlayerName();
   document.getElementById("menu-welcome").textContent = `Welcome, ${name}`;
-  document.getElementById("menu-highscore").textContent = await getHighScore();
+  document.getElementById("menu-highscore").textContent = getHighScore();
   showScreen("menu");
 }
 
@@ -98,9 +91,9 @@ document.getElementById("btn-play").addEventListener("click", startGame);
 document.getElementById("btn-play-again").addEventListener("click", startGame);
 document.getElementById("btn-menu").addEventListener("click", goToMenu);
 
-document.getElementById("btn-logout").addEventListener("click", async () => {
-  await logoutUser();
-  showScreen("auth");
+document.getElementById("btn-change-name").addEventListener("click", () => {
+  clearPlayerName();
+  showScreen("name");
 });
 
 // ---- Game ---------------------------------------------------------------
@@ -123,15 +116,18 @@ function startGame() {
           }, 1100);
         }
       },
-      async onGameOver({ runs, wickets, balls }) {
-        lastResult = { runs, wickets, balls };
-        const { highScore, isNewHighScore } = await saveScore(runs, wickets, balls);
+      onGameOver({ runs, wickets, balls }) {
+        const { highScore, isNewHighScore } = saveScore(runs, wickets, balls);
         document.getElementById("final-score").textContent = runs;
         document.getElementById("final-highscore-note").textContent = isNewHighScore
           ? "New personal best!"
           : `Personal best: ${highScore} runs`;
         if (activeGame) { activeGame.dispose(); activeGame = null; }
         showScreen("gameover");
+
+        if (localStorage.getItem(STATS_CONSENT_KEY) === "true") {
+          reportStats({ name: getPlayerName(), runs, wickets, balls });
+        }
       },
     });
   } catch (err) {

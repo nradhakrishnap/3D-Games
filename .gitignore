@@ -3,3 +3,8 @@
 Thumbs.db
 node_modules/
 *.log
+.scratch/
+
+# Real stats-collection endpoint -- never commit this; copy from
+# collect-config.example.js and fill in your own Apps Script URL.
+js/collect-config.js
