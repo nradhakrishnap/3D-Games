@@ -10,7 +10,8 @@ const GRAVITY = 15.5;
 const RESTITUTION = 0.55;
 const STUMP_HALF_WIDTH = 0.14;
 const STUMP_HEIGHT = 0.71;
-const HIT_WINDOW = { start: -1.4, end: 0.7, ideal: -0.25 };
+const HIT_WINDOW = { start: -2.0, end: 1.0, ideal: -0.5 };
+const DELIVERY_TIME = 1.5; // seconds from release to reaching the batsman -- slow enough to react to
 const WICKETS_LIMIT = 1;
 const OVERS_LIMIT = 5;
 const BALLS_PER_OVER = 6;
@@ -181,14 +182,12 @@ export function createCricketGame(container, callbacks) {
     resolved = false;
     hasSwungThisBall = false;
     const lineOffset = (Math.random() - 0.5) * 0.5; // line variation
-    const lengthVariation = 0.75 + Math.random() * 0.5; // where it pitches
+    const pitchVariation = 4.8 + Math.random() * 2.4; // controls where/how high it comes up off the bounce
     resetBallToBowler();
-    const distance = ball.position.z * -1; // to batsman roughly
-    const time = 0.95; // seconds to reach batsman area
     ballVel.set(
-      (lineOffset - ball.position.x) / time,
-      6.5 * lengthVariation,
-      (BATSMAN_Z + 0.3 - ball.position.z) / time
+      (lineOffset - ball.position.x) / DELIVERY_TIME,
+      pitchVariation,
+      (BATSMAN_Z + 0.3 - ball.position.z) / DELIVERY_TIME
     );
   }
 
@@ -316,7 +315,7 @@ export function createCricketGame(container, callbacks) {
       }
 
       // swung outside the timing window (too early/late) -- ball goes untouched
-      if (hasSwungThisBall && ball.position.z > 3.5) {
+      if (hasSwungThisBall && ball.position.z > 2.5) {
         finishDelivery("Dot ball");
       }
     }
