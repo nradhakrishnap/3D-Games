@@ -255,6 +255,7 @@ export function createCricketGame(container, callbacks) {
   let bowlArmT = 999; // large = idle; reset to 0 to play the bowling action
   let cameraShakeT = 0, cameraShakeMag = 0;
   let running = true;
+  let paused = false;
 
   function resetBallToBowler() {
     ball.position.set((Math.random() - 0.5) * 0.4, 2.0, BOWLER_Z + 1.5);
@@ -287,7 +288,7 @@ export function createCricketGame(container, callbacks) {
   updateHUD();
 
   function swing() {
-    if (!running || resolved || hasSwungThisBall) return;
+    if (!running || paused || resolved || hasSwungThisBall) return;
     hasSwungThisBall = true;
     swingArmed = true;
     swingAnimT = 0;
@@ -345,15 +346,17 @@ export function createCricketGame(container, callbacks) {
     const oversDone = ballsBowled >= OVERS_LIMIT * BALLS_PER_OVER;
     const allOut = wickets >= WICKETS_LIMIT;
 
-    setTimeout(() => {
+    const proceed = () => {
       if (!running) return;
+      if (paused) { setTimeout(proceed, 300); return; }
       if (oversDone || allOut) {
         running = false;
         onGameOver({ runs, wickets, balls: ballsBowled });
       } else {
         startDelivery();
       }
-    }, 1300);
+    };
+    setTimeout(proceed, 1300);
   }
 
   // ---- Input ----------------------------------------------------------------
@@ -381,6 +384,11 @@ export function createCricketGame(container, callbacks) {
 
   function step() {
     const dt = Math.min(clock.getDelta(), 0.05);
+
+    if (paused) {
+      renderer.render(scene, camera);
+      return;
+    }
 
     // bowler tiny run-up bob
     bowler.position.y = Math.abs(Math.sin(clock.elapsedTime * 2)) * 0.02;
@@ -452,6 +460,13 @@ export function createCricketGame(container, callbacks) {
   startDelivery();
 
   return {
+    pause() {
+      paused = true;
+    },
+    resume() {
+      paused = false;
+      clock.getDelta(); // discard the elapsed pause time so physics don't jump on resume
+    },
     dispose() {
       running = false;
       cancelAnimationFrame(rafId);

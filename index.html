@@ -73,9 +73,19 @@
       <div id="hud-score">0 / 0</div>
       <div id="hud-overs">Over 0.0</div>
       <div id="hud-message"></div>
+      <button id="btn-pause" aria-label="Pause">II</button>
     </div>
     <div id="canvas-container"></div>
     <div id="controls-hint">Press SPACE (or tap the field) to swing the bat as the ball arrives</div>
+
+    <div id="pause-overlay">
+      <div class="card">
+        <h1>Paused</h1>
+        <button id="btn-resume">Resume</button>
+        <button id="btn-restart" class="secondary">Restart innings</button>
+        <button id="btn-quit" class="secondary">Quit to menu</button>
+      </div>
+    </div>
   </section>
 
   <!-- GAME OVER -->

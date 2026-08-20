@@ -100,6 +100,7 @@ document.getElementById("btn-change-name").addEventListener("click", () => {
 function startGame() {
   showScreen("game");
   document.getElementById("hud-message").textContent = "";
+  document.getElementById("pause-overlay").classList.remove("active");
   const container = document.getElementById("canvas-container");
   container.innerHTML = "";
 
@@ -135,6 +136,30 @@ function startGame() {
     document.getElementById("hud-message").textContent = `Failed to load 3D scene: ${err.message}`;
   }
 }
+
+// ---- Pause / restart / quit -----------------------------------------------
+document.getElementById("btn-pause").addEventListener("click", () => {
+  if (!activeGame) return;
+  activeGame.pause();
+  document.getElementById("pause-overlay").classList.add("active");
+});
+
+document.getElementById("btn-resume").addEventListener("click", () => {
+  document.getElementById("pause-overlay").classList.remove("active");
+  if (activeGame) activeGame.resume();
+});
+
+document.getElementById("btn-restart").addEventListener("click", () => {
+  document.getElementById("pause-overlay").classList.remove("active");
+  if (activeGame) { activeGame.dispose(); activeGame = null; }
+  startGame();
+});
+
+document.getElementById("btn-quit").addEventListener("click", () => {
+  document.getElementById("pause-overlay").classList.remove("active");
+  if (activeGame) { activeGame.dispose(); activeGame = null; }
+  goToMenu();
+});
 
 // ---- Boot -----------------------------------------------------------------
 if (hasAccess()) {

@@ -96,7 +96,7 @@ button.secondary {
   margin: 12px 0 0;
 }
 
-#screen-game { flex-direction: column; align-items: stretch; }
+#screen-game { flex-direction: column; align-items: stretch; position: relative; }
 #canvas-container { flex: 1; position: relative; }
 #canvas-container canvas { display: block; width: 100%; height: 100%; }
 
@@ -130,3 +130,30 @@ button.secondary {
   color: #9fb0cc;
   background: #0e1626;
 }
+
+#btn-pause {
+  pointer-events: auto;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  font-size: 14px;
+  letter-spacing: 1px;
+  background: rgba(14, 22, 38, 0.75);
+  border: 1px solid #2a3a5f;
+  color: #e8edf5;
+}
+#btn-pause:hover { filter: brightness(1.15); }
+
+#pause-overlay {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  align-items: center;
+  justify-content: center;
+  background: rgba(5, 9, 18, 0.72);
+}
+#pause-overlay.active { display: flex; }
+#pause-overlay .card { width: 280px; }
