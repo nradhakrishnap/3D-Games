@@ -12,7 +12,7 @@ const STUMP_HALF_WIDTH = 0.14;
 const STUMP_HEIGHT = 0.71;
 const HIT_WINDOW = { start: -2.0, end: 1.0, ideal: -0.5 };
 const DELIVERY_TIME = 1.5; // seconds from release to reaching the batsman -- slow enough to react to
-const BOWL_ANIM_DURATION = 0.6; // seconds for the bowling arm to sweep over the top
+const BOWL_ANIM_DURATION = 0.75; // seconds for the full bowling delivery animation
 const WICKETS_LIMIT = 1;
 const OVERS_LIMIT = 5;
 const BALLS_PER_OVER = 6;
@@ -35,9 +35,9 @@ export function createCricketGame(container, callbacks) {
   scene.fog = new THREE.Fog(0xbfe3ff, 60, 130);
 
   const camera = new THREE.PerspectiveCamera(60, 1, 0.1, 300);
-  const CAMERA_HOME = new THREE.Vector3(0, 2.6, 7.8);
+  const CAMERA_HOME = new THREE.Vector3(2.4, 2.5, BATSMAN_Z + 5.8);
   camera.position.copy(CAMERA_HOME);
-  camera.lookAt(0, 1.3, BOWLER_Z);
+  camera.lookAt(0.5, 1.3, BATSMAN_Z + 0.9);
 
   function resize() {
     const w = container.clientWidth, h = container.clientHeight;
@@ -206,137 +206,134 @@ export function createCricketGame(container, callbacks) {
   const batsmanStumps = makeStumps(BATSMAN_Z);
   makeStumps(BOWLER_Z);
 
-  // ---- Players (procedural low-poly figures with visible arms) ------------------
+  // ---- Players (blocky, Roblox-style figures with articulated, animated limbs) ---
   const skinMat = new THREE.MeshStandardMaterial({ color: 0xe0b08c, roughness: 0.8 });
+
+  // A limb is a pivot group (the joint) containing a box mesh offset so it hangs
+  // down from the pivot -- rotating the pivot swings the whole limb.
+  function makeLimb(width, length, depth, mat) {
+    const pivot = new THREE.Group();
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, length, depth), mat);
+    mesh.position.y = -length / 2;
+    mesh.castShadow = true;
+    pivot.add(mesh);
+    pivot.userData.mesh = mesh;
+    pivot.userData.length = length;
+    return pivot;
+  }
 
   function makeBody(shirtColor, trouserColor) {
     const group = new THREE.Group();
-    const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.7 });
-    const trouserMat = new THREE.MeshStandardMaterial({ color: trouserColor, roughness: 0.75 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: 0.55 });
+    const trouserMat = new THREE.MeshStandardMaterial({ color: trouserColor, roughness: 0.7 });
 
-    const leftLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.08, 0.85, 8), trouserMat);
-    leftLeg.position.set(-0.13, 0.425, 0);
-    leftLeg.castShadow = true;
-    const rightLeg = leftLeg.clone();
-    rightLeg.position.x = 0.13;
-    group.add(leftLeg, rightLeg);
+    const leftLeg = makeLimb(0.17, 0.85, 0.19, trouserMat);
+    leftLeg.position.set(-0.12, 0.85, 0);
+    group.add(leftLeg);
+    const rightLeg = makeLimb(0.17, 0.85, 0.19, trouserMat);
+    rightLeg.position.set(0.12, 0.85, 0);
+    group.add(rightLeg);
 
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.24, 0.5, 4, 8), shirtMat);
-    torso.position.y = 1.15;
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.62, 0.3), shirtMat);
+    torso.position.y = 1.16;
     torso.castShadow = true;
     group.add(torso);
 
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 12), skinMat);
-    head.position.y = 1.66;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.32, 0.32), skinMat);
+    head.position.y = 1.63;
     head.castShadow = true;
     group.add(head);
 
-    return group;
+    return { group, torso, leftLeg, rightLeg };
   }
 
-  function makeArm(color) {
-    const arm = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.06, 0.4, 4, 6),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.7 })
-    );
-    arm.castShadow = true;
-    return arm;
+  function makeArm(color, length = 0.5) {
+    return makeLimb(0.15, length, 0.15, new THREE.MeshStandardMaterial({ color, roughness: 0.55 }));
   }
 
-  // -- Bowler: fixed figure plus a pivoting bowling arm animated per delivery --
-  const bowler = makeBody(0x2f4b8f, 0xf1efe4);
+  // -- Bowler: run-up legs + windmill bowling arm, all animated per delivery --
+  const bowlerBody = makeBody(0x2f4b8f, 0xf1efe4);
+  const bowler = bowlerBody.group;
   bowler.position.set(0.4, 0, BOWLER_Z - 2.2);
   scene.add(bowler);
 
-  const bowlArmPivot = new THREE.Group(); // shoulder pivot -- rotate for the bowling action
-  bowlArmPivot.position.set(0.2, 1.35, 0);
+  const bowlArmPivot = makeArm(0x2f4b8f, 0.52); // bowling arm -- rotates through the delivery
+  bowlArmPivot.position.set(0.22, 1.42, 0);
   bowler.add(bowlArmPivot);
-  const bowlArm = makeArm(0x2f4b8f);
-  bowlArm.position.set(0, -0.2, 0);
-  bowlArmPivot.add(bowlArm);
 
-  const bowlOtherArm = makeArm(0x2f4b8f);
-  bowlOtherArm.position.set(-0.32, 1.16, 0);
-  bowlOtherArm.rotation.z = 0.4;
-  bowler.add(bowlOtherArm);
+  const bowlOtherArmPivot = makeArm(0x2f4b8f, 0.5); // non-bowling arm -- counter-swings for balance
+  bowlOtherArmPivot.position.set(-0.22, 1.42, 0);
+  bowler.add(bowlOtherArmPivot);
 
   // cap
   const capMat = new THREE.MeshStandardMaterial({ color: 0x1f3266, roughness: 0.6 });
-  const cap = new THREE.Mesh(
-    new THREE.SphereGeometry(0.205, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.42),
-    capMat
-  );
-  cap.position.y = 1.7;
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.14, 0.34), capMat);
+  cap.position.y = 1.83;
   cap.castShadow = true;
   bowler.add(cap);
-  const capBrim = new THREE.Mesh(new THREE.CircleGeometry(0.13, 14, 0, Math.PI), capMat);
-  capBrim.rotation.set(-Math.PI / 2 + 0.35, 0, 0);
-  capBrim.position.set(0, 1.62, 0.13);
+  const capBrim = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.03, 0.14), capMat);
+  capBrim.position.set(0, 1.77, 0.2);
   bowler.add(capBrim);
 
-  // -- Batsman: fixed figure plus a pivoting shoulder group holding both arms + bat,
-  // so the whole swing reads as one clear, visible motion rather than a thin prop moving alone
-  const batsman = makeBody(0xb43b3b, 0xf1efe4);
+  // -- Batsman: legs + shoulder pivot holding both arms + bat, so a shot reads as
+  // one full-body motion rather than a thin prop moving alone --
+  const batsmanBody = makeBody(0xb43b3b, 0xf1efe4);
+  const batsman = batsmanBody.group;
   batsman.position.set(0.55, 0, BATSMAN_Z + 0.9);
   batsman.rotation.y = Math.PI;
   scene.add(batsman);
 
-  const batPivot = new THREE.Group();
-  batPivot.position.set(0, 1.35, 0.05);
+  const batPivot = new THREE.Group(); // shoulders -- rotates for the swing
+  batPivot.position.set(0, 1.42, 0.05);
   batsman.add(batPivot);
 
   const gearMat = new THREE.MeshStandardMaterial({ color: 0xf1efe4, roughness: 0.65 });
 
-  const leftArm = makeArm(0xb43b3b);
-  leftArm.position.set(-0.16, -0.2, 0.04);
+  const leftArm = makeArm(0xb43b3b, 0.5);
+  leftArm.position.set(-0.2, 0, 0.04);
   leftArm.rotation.set(-0.3, 0, 0.35);
   batPivot.add(leftArm);
-  const leftGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), gearMat);
-  leftGlove.position.set(0, -0.21, 0);
+  const leftGlove = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), gearMat);
+  leftGlove.position.y = -leftArm.userData.length / 2;
   leftGlove.castShadow = true;
-  leftArm.add(leftGlove);
+  leftArm.userData.mesh.add(leftGlove);
 
-  const rightArm = makeArm(0xb43b3b);
-  rightArm.position.set(0.08, -0.2, 0.1);
+  const rightArm = makeArm(0xb43b3b, 0.5);
+  rightArm.position.set(0.1, 0, 0.1);
   rightArm.rotation.set(-0.3, 0, -0.15);
   batPivot.add(rightArm);
-  const rightGlove = new THREE.Mesh(new THREE.SphereGeometry(0.075, 8, 8), gearMat);
-  rightGlove.position.set(0, -0.21, 0);
+  const rightGlove = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.15), gearMat);
+  rightGlove.position.y = -rightArm.userData.length / 2;
   rightGlove.castShadow = true;
-  rightArm.add(rightGlove);
+  rightArm.userData.mesh.add(rightGlove);
 
   const bat = new THREE.Mesh(
     new THREE.BoxGeometry(0.15, 0.85, 0.06),
     new THREE.MeshStandardMaterial({ color: 0xd9b878, roughness: 0.5 })
   );
-  bat.position.set(-0.04, -0.75, 0.07);
+  bat.position.set(-0.04, -0.82, 0.07);
   bat.castShadow = true;
   batPivot.add(bat);
 
   // helmet
-  const helmet = new THREE.Mesh(
-    new THREE.SphereGeometry(0.205, 14, 10, 0, Math.PI * 2, 0, Math.PI * 0.7),
-    new THREE.MeshStandardMaterial({ color: 0x15213a, roughness: 0.35, metalness: 0.15 })
-  );
-  helmet.position.y = 1.68;
+  const helmetMat = new THREE.MeshStandardMaterial({ color: 0x15213a, roughness: 0.35, metalness: 0.15 });
+  const helmet = new THREE.Mesh(new THREE.BoxGeometry(0.37, 0.37, 0.37), helmetMat);
+  helmet.position.y = 1.63;
   helmet.castShadow = true;
   batsman.add(helmet);
-  const helmetPeak = new THREE.Mesh(
-    new THREE.CircleGeometry(0.1, 12, 0, Math.PI),
-    new THREE.MeshStandardMaterial({ color: 0x15213a, roughness: 0.35, side: THREE.DoubleSide })
-  );
-  helmetPeak.rotation.set(-Math.PI / 2 + 0.3, 0, 0);
-  helmetPeak.position.set(0, 1.6, 0.14);
+  const helmetPeak = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.13), helmetMat);
+  helmetPeak.position.set(0, 1.53, 0.2);
   batsman.add(helmetPeak);
 
   // leg pads (front of the shins)
-  const leftPad = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.09, 0.55, 8), gearMat);
-  leftPad.position.set(-0.13, 0.3, 0.05);
+  const leftPad = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.1), gearMat);
+  leftPad.position.set(0, -0.1, 0.06);
   leftPad.castShadow = true;
-  batsman.add(leftPad);
-  const rightPad = leftPad.clone();
-  rightPad.position.x = 0.13;
-  batsman.add(rightPad);
+  batsmanBody.leftLeg.userData.mesh.add(leftPad);
+  const rightPad = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.55, 0.1), gearMat);
+  rightPad.position.set(0, -0.1, 0.06);
+  rightPad.castShadow = true;
+  batsmanBody.rightLeg.userData.mesh.add(rightPad);
 
   // ---- Ball -------------------------------------------------------------------
   const ball = new THREE.Mesh(
@@ -500,14 +497,16 @@ export function createCricketGame(container, callbacks) {
       return;
     }
 
-    // bowler tiny run-up bob
-    bowler.position.y = Math.abs(Math.sin(clock.elapsedTime * 2)) * 0.02;
-
-    // bowling arm action -- swings over the top once per delivery
+    // bowler delivery action -- full body: legs drive, torso leans, both arms swing
     if (bowlArmT < BOWL_ANIM_DURATION) {
       bowlArmT += dt;
       const t = Math.min(bowlArmT / BOWL_ANIM_DURATION, 1);
-      bowlArmPivot.rotation.x = 1.3 - t * 3.0;
+      const swing = Math.sin(t * Math.PI);
+      bowlArmPivot.rotation.x = 1.7 - t * 4.4;
+      bowlOtherArmPivot.rotation.x = -1.0 + t * 2.6;
+      bowler.rotation.x = swing * 0.3;
+      bowlerBody.leftLeg.rotation.x = -swing * 0.35;
+      bowlerBody.rightLeg.rotation.x = swing * 0.5;
     }
 
     // camera shake on a well-hit shot
@@ -523,18 +522,27 @@ export function createCricketGame(container, callbacks) {
       camera.position.copy(CAMERA_HOME);
     }
 
-    // bat swing animation -- sweeps sideways (like a real cricket shot) so it reads
-    // clearly as left-right motion from a camera behind the batsman, instead of
-    // swinging toward/away from the camera where it would be barely visible
+    // batsman: full-body swing (sweeps sideways so it reads as clear left-right
+    // motion from a camera behind him, plus hips/shoulders turning into the shot
+    // and a front-foot step) when swinging, otherwise a subtle idle weight-shift
+    // so the stance never looks frozen while waiting for the ball
     if (swingArmed) {
       swingAnimT += dt;
       const t = Math.min(swingAnimT / 0.35, 1);
-      batPivot.rotation.y = -Math.sin(t * Math.PI) * 2.2;
-      batPivot.rotation.x = -Math.sin(t * Math.PI) * 0.5;
+      const swing = Math.sin(t * Math.PI);
+      batPivot.rotation.y = -swing * 2.2;
+      batPivot.rotation.x = -swing * 0.5;
+      batsman.rotation.y = Math.PI - swing * 0.35;
+      batsmanBody.leftLeg.rotation.x = swing * 0.25;
+      batsmanBody.rightLeg.rotation.x = -swing * 0.15;
       if (t >= 1) swingArmed = false;
     } else {
       batPivot.rotation.y = 0;
       batPivot.rotation.x = 0;
+      batsman.rotation.y = Math.PI;
+      const idle = Math.sin(clock.elapsedTime * 1.6) * 0.06;
+      batsmanBody.leftLeg.rotation.x = idle;
+      batsmanBody.rightLeg.rotation.x = -idle;
     }
 
     // ball physics run continuously (including the moment right after a hit,
