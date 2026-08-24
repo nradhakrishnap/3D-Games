@@ -23,7 +23,7 @@ Then open `http://localhost:8000`.
 - **Name / scores**: no account, no password. A player types a name and it's remembered (with their high score) in that browser's local storage only. Different browser or device = a fresh start.
 - **Optional stats**: on the disclaimer screen there's an unchecked-by-default checkbox to also send name, score, approximate region (city/country from IP), and connection type/speed to a Google Sheet you control. Nothing is sent unless a player explicitly checks it. See `google-apps-script/README.md` to wire this up (optional — the game works fully without it).
 - **Game**: batting only. An AI bowler sends deliveries down the pitch; press **SPACE** (or tap the field on mobile) to swing as the ball arrives. Timing determines runs (dot ball, 1, 2, 4, 6) or getting bowled. Single innings, 1 wicket, 5 overs. A pause button in the HUD lets you resume, restart the innings, or quit to the menu mid-game.
-- **Visuals**: procedural low-poly players (helmet/pads/gloves on the batsman, cap on the bowler), a seamed ball, tiered stadium stands, boundary advertising boards, and floodlight towers — all generated in code, no external 3D model files.
+- **Visuals**: procedural blocky, articulated players (helmet/pads/gloves on the batsman, cap on the bowler) with animated limbs -- the bowler's full-body delivery action and the batsman's swing (torso turn, front-foot step) play out each ball, not just a single moving prop. A seamed ball, tiered stadium stands, boundary advertising boards, and floodlight towers round out the scene — all generated in code, no external 3D model files. The in-game camera sits close behind the batsman for an over-the-shoulder view of each delivery.
 
 ## Deploying so you can share a URL
 
