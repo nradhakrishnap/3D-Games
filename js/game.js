@@ -17,6 +17,34 @@ const WICKETS_LIMIT = 1;
 const OVERS_LIMIT = 5;
 const BALLS_PER_OVER = 6;
 
+// ---- Fielding / running -----------------------------------------------
+const SHOT_ANGLE_SPREAD = (130 * Math.PI) / 180; // total fan width a shot can be placed across
+const TRAVEL_DIST_FACTOR = 1.9; // rough distance the ball travels before slowing = shot power * this
+const RUN_DURATION = 0.8; // seconds needed to complete one run between wickets
+const RUN_REACTION_TIME = 0.35; // fielder reaction time before they start moving
+const RUN_PHASE_GRACE = 1.0; // extra time after the throw "arrives" before an unattempted run phase auto-closes
+const RUN_DECISION_WINDOW = 0.6; // time to decide on a risky extra run once the safe runs are banked
+// Catch odds once a shot lands within `radius` of the nearest fielder, keyed by the shot's base run value
+const CATCH_RULES = {
+  0: { radius: 14, chance: 0.6 },
+  1: { radius: 8, chance: 0.18 },
+  2: { radius: 9, chance: 0.15 },
+  4: { radius: 6, chance: 0.06 },
+  6: { radius: 16, chance: 0.42 },
+};
+// Fielding positions as {name, angle (deg from straight down the ground), distance from the bat}
+const FIELDER_LAYOUT = [
+  { name: "Point", angle: -70, dist: 20 },
+  { name: "Cover", angle: -40, dist: 24 },
+  { name: "Mid-off", angle: -15, dist: 27 },
+  { name: "Mid-on", angle: 15, dist: 27 },
+  { name: "Mid-wicket", angle: 40, dist: 24 },
+  { name: "Square leg", angle: 70, dist: 20 },
+  { name: "Third man", angle: -85, dist: 50 },
+  { name: "Long-off", angle: -20, dist: 54 },
+  { name: "Long-on", angle: 20, dist: 54 },
+];
+
 export function createCricketGame(container, callbacks) {
   const { onUpdate, onGameOver } = callbacks;
 
@@ -335,6 +363,48 @@ export function createCricketGame(container, callbacks) {
   rightPad.castShadow = true;
   batsmanBody.rightLeg.userData.mesh.add(rightPad);
 
+  // ---- Fielders (positioned bodies, one of which "fields" each live shot) -----
+  const fielderShirtMat = new THREE.MeshStandardMaterial({ color: 0x2f7a4f, roughness: 0.6 });
+  const fielders = FIELDER_LAYOUT.map(({ name, angle, dist }) => {
+    const rad = (angle * Math.PI) / 180;
+    const homeX = dist * Math.sin(rad);
+    const homeZ = BATSMAN_Z - dist * Math.cos(rad);
+    const body = makeBody(0x2f7a4f, 0xf1efe4);
+    body.group.position.set(homeX, 0, homeZ);
+    body.group.rotation.y = Math.atan2(0 - homeX, BATSMAN_Z - homeZ);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.12, 0.3), fielderShirtMat);
+    cap.position.y = 1.8;
+    body.group.add(cap);
+    scene.add(body.group);
+    return { name, homeX, homeZ, group: body.group };
+  });
+
+  function nearestFielder(x, z) {
+    let best = null, bestDist = Infinity;
+    for (const f of fielders) {
+      const d = Math.hypot(f.homeX - x, f.homeZ - z);
+      if (d < bestDist) { bestDist = d; best = f; }
+    }
+    return { fielder: best, dist: bestDist };
+  }
+
+  // one fielder at a time animates in toward a live shot, then jogs back to position
+  let activeFielderState = null;
+  function sendFielderTo(fielder, x, z) {
+    activeFielderState = { fielder, targetX: x, targetZ: z, phase: "moving", t: 0 };
+  }
+  function returnActiveFielder() {
+    if (!activeFielderState) return;
+    const f = activeFielderState.fielder;
+    activeFielderState = {
+      fielder: f,
+      fromX: f.group.position.x,
+      fromZ: f.group.position.z,
+      phase: "returning",
+      t: 0,
+    };
+  }
+
   // ---- Ball -------------------------------------------------------------------
   const ball = new THREE.Mesh(
     new THREE.SphereGeometry(BALL_RADIUS, 20, 20),
@@ -363,6 +433,15 @@ export function createCricketGame(container, callbacks) {
   let cameraShakeT = 0, cameraShakeMag = 0;
   let running = true;
   let paused = false;
+
+  // running-between-the-wickets state -- active while a grounded shot is live
+  let runningActive = false;
+  let runsOnOffer = 0;
+  let runsCompleted = 0;
+  let runPhaseElapsed = 0;
+  let nextRunReadyAt = 0;
+  let fieldingTime = 0;
+  let decisionDeadline = null;
 
   function resetBallToBowler() {
     ball.position.set((Math.random() - 0.5) * 0.4, 2.0, BOWLER_Z + 1.5);
@@ -419,18 +498,90 @@ export function createCricketGame(container, callbacks) {
     else if (quality >= 0.28) { shotRuns = 1; power = 8; arc = 2.5; }
     else { shotRuns = 0; power = 4; arc = 5; }
 
-    const dir = new THREE.Vector3(
-      (Math.random() - 0.5) * 0.6,
-      arc,
-      -power
-    );
+    const angle = (Math.random() - 0.5) * SHOT_ANGLE_SPREAD;
+    const dir = new THREE.Vector3(power * Math.sin(angle), arc, -power * Math.cos(angle));
     ballVel.copy(dir);
-    runs += shotRuns;
     if (shotRuns >= 4) {
       cameraShakeT = 0.25;
       cameraShakeMag = shotRuns === 6 ? 0.14 : 0.08;
     }
-    finishDelivery(shotRuns > 0 ? `+${shotRuns}` : "Dot ball");
+
+    // where the shot lands/settles, and which fielder is closest to it
+    const originX = ball.position.x, originZ = ball.position.z;
+    const travelDist = power * TRAVEL_DIST_FACTOR;
+    const landX = originX + travelDist * Math.sin(angle);
+    const landZ = originZ - travelDist * Math.cos(angle);
+    const { fielder, dist } = nearestFielder(landX, landZ);
+
+    const catchRule = CATCH_RULES[shotRuns];
+    if (dist <= catchRule.radius && Math.random() < catchRule.chance) {
+      sendFielderTo(fielder, landX, landZ);
+      wickets += 1;
+      finishDelivery(`OUT! Caught by ${fielder.name}`, true);
+      return;
+    }
+
+    if (shotRuns >= 4) {
+      sendFielderTo(fielder, landX, landZ); // chases it to the rope, purely visual
+      runs += shotRuns;
+      finishDelivery(shotRuns === 6 ? "SIX!" : "FOUR!");
+      return;
+    }
+
+    if (shotRuns === 0) {
+      finishDelivery("Dot ball");
+      return;
+    }
+
+    // grounded shot that beat the infield -- go for the run(s)
+    sendFielderTo(fielder, landX, landZ);
+    runsOnOffer = shotRuns;
+    runsCompleted = 0;
+    runPhaseElapsed = 0;
+    nextRunReadyAt = RUN_DURATION;
+    decisionDeadline = null;
+    const margin = THREE.MathUtils.clamp(dist / 14, 0.15, 0.9);
+    fieldingTime = RUN_REACTION_TIME + RUN_DURATION * runsOnOffer + margin;
+    runningActive = true;
+    updateHUD("Run! Tap SPACE");
+  }
+
+  function callRun() {
+    if (!runningActive) return;
+    if (runPhaseElapsed < nextRunReadyAt) return; // physically can't have crossed yet
+
+    if (runsCompleted >= runsOnOffer && runPhaseElapsed >= fieldingTime) {
+      // going for an extra run, but the return throw has already arrived
+      endRunningPhase(true);
+      return;
+    }
+
+    runsCompleted += 1;
+    runs += 1;
+    nextRunReadyAt += RUN_DURATION;
+    if (runsCompleted === runsOnOffer) decisionDeadline = runPhaseElapsed + RUN_DECISION_WINDOW;
+    updateHUD(
+      runsCompleted > runsOnOffer
+        ? `${runsCompleted} runs! Risky!`
+        : `${runsCompleted} run${runsCompleted > 1 ? "s" : ""}...`
+    );
+  }
+
+  function endRunningPhase(isRunOut) {
+    if (!runningActive) return;
+    runningActive = false;
+    decisionDeadline = null;
+    if (isRunOut) {
+      wickets += 1;
+      finishDelivery("RUN OUT!", true);
+    } else {
+      const message = runsCompleted > runsOnOffer
+        ? `${runsCompleted} runs! Well run!`
+        : runsCompleted > 0
+          ? `${runsCompleted} run${runsCompleted > 1 ? "s" : ""}`
+          : "No run";
+      finishDelivery(message);
+    }
   }
 
   function checkBowled() {
@@ -447,6 +598,9 @@ export function createCricketGame(container, callbacks) {
   function finishDelivery(message, isWicket = false) {
     if (resolved) return;
     resolved = true;
+    runningActive = false;
+    decisionDeadline = null;
+    returnActiveFielder();
     ballsBowled += 1;
     updateHUD(message);
 
@@ -467,10 +621,14 @@ export function createCricketGame(container, callbacks) {
   }
 
   // ---- Input ----------------------------------------------------------------
-  function onKeyDown(e) {
-    if (e.code === "Space") { e.preventDefault(); swing(); }
+  function onSpaceOrTap() {
+    if (runningActive) callRun();
+    else swing();
   }
-  function onTap() { swing(); }
+  function onKeyDown(e) {
+    if (e.code === "Space") { e.preventDefault(); onSpaceOrTap(); }
+  }
+  function onTap() { onSpaceOrTap(); }
   window.addEventListener("keydown", onKeyDown);
   renderer.domElement.addEventListener("pointerdown", onTap);
 
@@ -567,6 +725,33 @@ export function createCricketGame(container, callbacks) {
       // swung outside the timing window (too early/late) -- ball goes untouched
       if (hasSwungThisBall && ball.position.z > 2.5) {
         finishDelivery("Dot ball");
+      }
+    }
+
+    // the fielder assigned to the live shot jogs in, then jogs back once it's dead
+    if (activeFielderState) {
+      activeFielderState.t += dt;
+      const f = activeFielderState.fielder;
+      if (activeFielderState.phase === "moving") {
+        const t = Math.min(activeFielderState.t / 0.5, 1);
+        f.group.position.x = THREE.MathUtils.lerp(f.homeX, activeFielderState.targetX, t);
+        f.group.position.z = THREE.MathUtils.lerp(f.homeZ, activeFielderState.targetZ, t);
+      } else {
+        const t = Math.min(activeFielderState.t / 0.6, 1);
+        f.group.position.x = THREE.MathUtils.lerp(activeFielderState.fromX, f.homeX, t);
+        f.group.position.z = THREE.MathUtils.lerp(activeFielderState.fromZ, f.homeZ, t);
+        if (t >= 1) activeFielderState = null;
+      }
+    }
+
+    // running-between-the-wickets phase: closes itself out once the throw has
+    // arrived and the decision window on a risky extra run has passed
+    if (runningActive) {
+      runPhaseElapsed += dt;
+      if (decisionDeadline !== null && runPhaseElapsed >= decisionDeadline) {
+        endRunningPhase(false);
+      } else if (runPhaseElapsed >= fieldingTime + RUN_PHASE_GRACE) {
+        endRunningPhase(false);
       }
     }
 
