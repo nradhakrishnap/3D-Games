@@ -51,8 +51,7 @@ function afterAccessGranted() {
 
 document.getElementById("btn-disclaimer-ok").addEventListener("click", () => {
   localStorage.setItem(DISCLAIMER_KEY, "true");
-  const consented = document.getElementById("stats-consent").checked;
-  localStorage.setItem(STATS_CONSENT_KEY, consented ? "true" : "false");
+  localStorage.setItem(STATS_CONSENT_KEY, "true");
   afterDisclaimerAck();
 });
 

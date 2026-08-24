@@ -42,20 +42,6 @@ h1 {
 .subtitle { margin: 0 0 20px; color: #9fb0cc; font-size: 14px; }
 .disclaimer-text { margin: 0 0 16px; color: #cbd8ee; font-size: 14px; line-height: 1.6; text-align: left; }
 
-.consent-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  text-align: left;
-  margin: 0 0 20px;
-  padding: 12px;
-  background: #0e1626;
-  border: 1px solid #2a3a5f;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.consent-row input { margin-top: 3px; flex: none; width: 16px; height: 16px; accent-color: #34d399; }
-.consent-row span { font-size: 13px; line-height: 1.55; color: #9fb0cc; }
 .stat { color: #cbd8ee; font-size: 15px; margin: 6px 0 18px; }
 
 form { display: flex; flex-direction: column; gap: 10px; }
