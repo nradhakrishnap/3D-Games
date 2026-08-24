@@ -22,7 +22,7 @@ Then open `http://localhost:8000`.
 - **Disclaimer**: shown once per browser, before the name prompt, stating plainly what is and isn't stored. Keep it accurate — update it if what the app collects ever changes.
 - **Name / scores**: no account, no password. A player types a name and it's remembered (with their high score) in that browser's local storage only. Different browser or device = a fresh start.
 - **Optional stats**: on the disclaimer screen there's an unchecked-by-default checkbox to also send name, score, approximate region (city/country from IP), and connection type/speed to a Google Sheet you control. Nothing is sent unless a player explicitly checks it. See `google-apps-script/README.md` to wire this up (optional — the game works fully without it).
-- **Game**: batting only. An AI bowler sends deliveries down the pitch; press **SPACE** (or tap the field on mobile) to swing as the ball arrives. Timing determines runs (dot ball, 1, 2, 4, 6) or getting bowled. Single innings, 1 wicket, 5 overs. A pause button in the HUD lets you resume, restart the innings, or quit to the menu mid-game.
+- **Game**: batting only. An AI bowler sends deliveries down the pitch; press **SPACE** (or tap the field on mobile) to swing as the ball arrives. Timing determines the shot: a dot ball, a boundary (FOUR!/SIX!), or a grounded shot worth 1 or 2. Nine fielders cover the ground -- a mistimed or skied shot carries a real chance of being caught, ending the innings. Grounded shots aren't auto-credited: a running phase starts and you keep tapping SPACE to complete each run, with the option to press on for a risky extra run before the fielder's return throw arrives (get it wrong and it's a run out). Single innings, 1 wicket, 5 overs. A pause button in the HUD lets you resume, restart the innings, or quit to the menu mid-game.
 - **Visuals**: procedural blocky, articulated players (helmet/pads/gloves on the batsman, cap on the bowler) with animated limbs -- the bowler's full-body delivery action and the batsman's swing (torso turn, front-foot step) play out each ball, not just a single moving prop. A seamed ball, tiered stadium stands, boundary advertising boards, and floodlight towers round out the scene — all generated in code, no external 3D model files. The in-game camera sits close behind the batsman for an over-the-shoulder view of each delivery.
 
 ## Deploying so you can share a URL
@@ -46,7 +46,7 @@ This repo auto-deploys to GitHub Pages on every push to `main` via
 ## Roadmap ideas (not built yet)
 
 - A shared leaderboard across players/devices (would need a small backend — e.g. Firestore with just name + score, no accounts)
-- Bowling mode / full match simulation, fielding, running between wickets
+- Bowling mode / full match simulation
 - Ball swing & spin physics, difficulty levels, different shot types
 - Sound effects and commentary-style feedback
 - Multiplayer
